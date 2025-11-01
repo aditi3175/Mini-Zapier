@@ -5,76 +5,126 @@ import { sendSlackMessage } from "../integrations/slack.js";
 import { sendEmail } from "../integrations/email.js";
 import { callWebhook } from "../integrations/webhook.js";
 
-const connection = new IORedis({
-  maxRetriesPerRequest: null, // ✅ Required for BullMQ
-});
-const prisma = new PrismaClient();
+// Placeholder replacement function
+// Supports both {{payload.data.key}} and {{data.key}}
+const replacePlaceholders = (str, payload) => {
+  if (typeof str !== "string") return str;
+  return str.replace(/\{\{(.*?)\}\}/g, (_, rawPath) => {
+    const keys = rawPath.trim().split(".");
+    // Allow optional leading "payload" segment
+    if (keys[0] === "payload") keys.shift();
+    let value = payload;
+    for (const key of keys) {
+      if (value == null || typeof value !== "object" || !(key in value)) return "";
+      value = value[key];
+    }
+    return value == null ? "" : String(value);
+  });
+};
 
+// Redis connection for BullMQ
+const connection = new IORedis(process.env.REDIS_URL || {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: process.env.REDIS_PORT || 6379,
+  password: process.env.REDIS_PASSWORD || undefined,
+  maxRetriesPerRequest: null,
+});
+
+// Create the Worker
 const worker = new Worker(
   "workflowActionQueue",
   async (job) => {
     console.log(`Running workflow ${job.id}`);
+    const { workflowId, actions, payload, triggerId } = job.data;
 
-    const { workflowId, actions, payload } = job.data;
-
-    // Create job log in DB
-    const dbJob = await prisma.Job.create({
+    // Log the job in DB
+    const dbJob = await prisma.job.create({
       data: {
-        workflowId,
-        status: "running",
+        workflow: { connect: { id: workflowId } },
+        status: "RUNNING",
         payload,
         attempts: 0,
+        triggerId: triggerId || null,
       },
     });
 
     try {
+      const results = [];
+      // Execute actions sequentially
       for (const action of actions) {
         console.log(`Executing action: ${action.type}`);
 
-        switch (action.type) {
-          case "sendEmail":
-            await sendEmail({ config: action.config, payload });
-            break;
-          case "slackMessage":
-            await sendSlackMessage({ config: action.config, payload });
-            break;
-          case "webhook":
-            await callWebhook({ config: action.config, payload });
-            break;
-          default:
-            console.log(`Unknown action type: ${action.type}`);
+        // Resolve dynamic placeholders in action config
+        const resolvedConfig = {};
+        for (const key in action.config) {
+          resolvedConfig[key] = replacePlaceholders(action.config[key], payload);
         }
 
-        // simulate some delay between actions
+        let actionResult = { type: action.type, ok: true };
+        // Execute action based on type
+        try {
+          switch (action.type) {
+            case "sendEmail": {
+              const info = await sendEmail({ config: resolvedConfig, payload });
+              actionResult = { ...actionResult, info: info || null };
+              break;
+            }
+            case "slackMessage": {
+              await sendSlackMessage({ config: resolvedConfig, payload });
+              actionResult = { ...actionResult, message: "Slack message sent successfully" };
+              break;
+            }
+            case "webhook": {
+              const result = await callWebhook({ config: resolvedConfig, payload });
+              actionResult = { ...actionResult, ...(result || {}) };
+              break;
+            }
+            default:
+              actionResult.ok = false;
+              actionResult.error = `Unknown action type: ${action.type}`;
+          }
+        } catch (actionErr) {
+          // Catch individual action errors but continue with other actions
+          console.error(`Action ${action.type} failed:`, actionErr.message);
+          actionResult.ok = false;
+          actionResult.error = actionErr.message || "Action execution failed";
+          // Still include resolved config for debugging
+          actionResult.config = resolvedConfig;
+        }
+
+        results.push(actionResult);
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
-        // Update job log as success
-        await prisma.Job.update({
-          where: { id: dbJob.id },
-          data: { status: "success" },
-        });
+      // Update job as SUCCESS with results
+      await prisma.job.update({
+        where: { id: dbJob.id },
+        data: { status: "SUCCESS", result: { actions: results } },
+      });
 
-        console.log(`Workflow ${job.id} completed`);
-      } catch (err) {
-      console.error(`Workflow ${job.id} failed:`, err.message);
+      console.log(`Workflow ${job.id} completed successfully`);
 
-      // Update job log as failed
-      await prisma.Job.update({
+    } catch (err) {
+      console.error(`Workflow ${job.id} failed: ${err.message}`);
+
+      // Update job as FAILED
+      await prisma.job.update({
         where: { id: dbJob.id },
         data: {
-          status: "failed",
+          status: "FAILED",
           lastError: err.message,
           attempts: job.attemptsMade + 1,
         },
       });
-      // Throw error so BullMQ can retry
+
+      // Throw error so BullMQ can retry if needed
       throw err;
     }
   },
   { connection }
 );
 
+// Event listeners
 worker.on("completed", (job) => {
   console.log(`Job ${job.id} finished successfully`);
 });

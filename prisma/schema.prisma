@@ -19,6 +19,8 @@ model User {
   id        Int        @id @default(autoincrement())
   email     String     @unique
   password  String
+  name      String?
+  avatarUrl String?
   role      Role       @default(USER)
   createdAt DateTime   @default(now())
   workflows Workflow[]
@@ -30,6 +32,7 @@ model Workflow {
   userId     Int
   name       String
   enabled    Boolean   @default(true)
+  secret     String?   @unique  // Webhook authentication secret
   createdAt  DateTime  @default(now())
   triggers   Trigger[]
   actions    Action[]
@@ -44,7 +47,6 @@ model Trigger {
   config    Json
   lastRunAt DateTime?
   createdAt DateTime  @default(now())
-  jobs      Job[]
 }
 
 model Action {
@@ -61,8 +63,7 @@ model Job {
   id          Int       @id @default(autoincrement())
   workflow    Workflow  @relation(fields: [workflowId], references: [id])
   workflowId  Int
-  trigger     Trigger   @relation(fields: [triggerId], references: [id])
-  triggerId   Int
+  triggerId   Int?
   status      JobStatus @default(QUEUED)
   attempts    Int       @default(0)
   lastError   String?
