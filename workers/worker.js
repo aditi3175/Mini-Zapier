@@ -23,6 +23,10 @@ const replacePlaceholders = (str, payload) => {
 };
 
 // Redis connection for BullMQ
+console.log("🔍 Redis Configuration Check:");
+console.log("REDIS_URL present?", !!process.env.REDIS_URL);
+console.log("REDIS_URL value:", process.env.REDIS_URL ? `${process.env.REDIS_URL.substring(0, 20)}...` : 'NOT SET');
+
 const redisOptions = process.env.REDIS_URL 
   ? { 
       url: process.env.REDIS_URL,
@@ -34,6 +38,8 @@ const redisOptions = process.env.REDIS_URL
       password: process.env.REDIS_PASSWORD || undefined,
       maxRetriesPerRequest: null,
     };
+
+console.log("📡 Redis Options:", JSON.stringify({ ...redisOptions, url: redisOptions.url ? 'REDIS_URL_SET' : 'FALLBACK_TO_LOCALHOST' }));
 
 const connection = new IORedis(redisOptions);
 
