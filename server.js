@@ -56,11 +56,17 @@ app.use(cors(corsOptions));
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     const origin = req.headers.origin;
+    console.log(`🔍 OPTIONS request from origin: ${origin}`);
     // Check if origin is allowed
     if (origin && (corsOrigins.includes('*') || corsOrigins.includes(origin))) {
       res.header('Access-Control-Allow-Origin', origin);
+      console.log(`✅ Allowed origin: ${origin}`);
     } else if (corsOrigins.includes('*')) {
       res.header('Access-Control-Allow-Origin', '*');
+      console.log(`✅ Allowed all origins`);
+    } else {
+      console.log(`⚠️  Origin not in allowed list: ${origin}`);
+      console.log(`Allowed origins:`, corsOrigins);
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
