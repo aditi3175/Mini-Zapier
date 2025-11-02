@@ -9,14 +9,26 @@ console.log("🚀 Starting Mini Zapier Backend...");
 console.log("PORT:", process.env.PORT || 3000);
 console.log("NODE_ENV:", process.env.NODE_ENV || "development");
 
-// Test database connection
-try {
-  await prisma.$connect();
-  console.log("✅ Database connected successfully");
-} catch (error) {
-  console.error("❌ Database connection failed:", error.message);
-  process.exit(1);
+// Test database connection (non-blocking in development)
+async function connectDatabase() {
+  try {
+    await prisma.$connect();
+    console.log("✅ Database connected successfully");
+    return true;
+  } catch (error) {
+    console.error("❌ Database connection failed:", error.message);
+    if (process.env.NODE_ENV === "production") {
+      console.error("🚨 Production mode: Exiting due to database connection failure");
+      process.exit(1);
+    } else {
+      console.warn("⚠️  Development mode: Continuing without database (some features may not work)");
+      return false;
+    }
+  }
 }
+
+// Connect database (non-blocking)
+const dbConnected = await connectDatabase();
 
 const app = express();
 
