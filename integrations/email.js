@@ -1,6 +1,39 @@
 import nodemailer from "nodemailer";
+import axios from "axios";
 
 let cachedTransporterPromise;
+
+// SendGrid API integration (works when SMTP ports are blocked)
+async function sendViaSendGridAPI({ to, subject, text, html }) {
+  const apiKey = process.env.SMTP_PASS; // SendGrid API key
+  if (!apiKey || !apiKey.startsWith('SG.')) {
+    throw new Error("SendGrid API key not found or invalid");
+  }
+
+  const response = await axios.post(
+    'https://api.sendgrid.com/v3/mail/send',
+    {
+      personalizations: [{
+        to: [{ email: to }],
+        subject: subject,
+      }],
+      from: { email: 'noreply@minizapier.com', name: 'Mini Zapier' },
+      content: [
+        { type: 'text/plain', value: text },
+        ...(html ? [{ type: 'text/html', value: html }] : []),
+      ],
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    }
+  );
+
+  return { messageId: response.headers['x-message-id'] || 'sent' };
+}
 
 async function getTransporter() {
   if (cachedTransporterPromise) return cachedTransporterPromise;
@@ -15,6 +48,13 @@ async function getTransporter() {
   console.log("  SMTP_PORT:", port);
   console.log("  SMTP_USER:", user ? "✅ Set" : "❌ Missing");
   console.log("  SMTP_PASS:", pass ? "✅ Set (hidden)" : "❌ Missing");
+
+  // Check if SendGrid API key (starts with SG.) and host is sendgrid
+  if (pass && pass.startsWith('SG.') && host && host.includes('sendgrid')) {
+    console.log("✅ Using SendGrid API (HTTPS) instead of SMTP");
+    cachedTransporterPromise = Promise.resolve({ type: 'sendgrid-api', apiKey: pass });
+    return cachedTransporterPromise;
+  }
 
   if (host && user && pass) {
     console.log("✅ Using SMTP transport:", host, "port:", port);
@@ -97,6 +137,20 @@ export const sendEmail = async ({ config, payload }) => {
   const bodyText = config.body || config.text || "";
 
   try {
+    // Check if using SendGrid API
+    if (transporter && transporter.type === 'sendgrid-api') {
+      console.log("📧 Sending email via SendGrid API...");
+      const info = await sendViaSendGridAPI({
+        to,
+        subject,
+        text: bodyText,
+        html: config.html || undefined,
+      });
+      console.log("✅ Email sent via SendGrid API:", info.messageId);
+      return { to, subject, previewUrl: null };
+    }
+
+    // Use nodemailer transport
     const info = await transporter.sendMail({
       from: '"Mini Zapier" <no-reply@example.com>',
       to,
@@ -109,7 +163,7 @@ export const sendEmail = async ({ config, payload }) => {
     const preview = nodemailer.getTestMessageUrl?.(info) || null;
     if (preview) {
       console.log("📧 Email preview:", preview);
-    } else if (transporter.transporter.name === 'JSONTransport') {
+    } else if (transporter.transporter && transporter.transporter.name === 'JSONTransport') {
       console.log("📧 Email (JSON transport):", JSON.stringify(info, null, 2));
     }
 
