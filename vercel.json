@@ -1,8 +1,8 @@
 {
-  "buildCommand": "npm install && cd frontend && npm install && npm run build",
+  "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "devCommand": "cd frontend && npm run dev",
-  "installCommand": "npm install && cd frontend && npm install",
+  "installCommand": "cd frontend && npm install",
   "framework": "vite",
   "rewrites": [
     {
@@ -11,4 +11,3 @@
     }
   ]
 }
-
