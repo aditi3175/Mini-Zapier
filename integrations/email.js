@@ -17,18 +17,33 @@ async function getTransporter() {
   console.log("  SMTP_PASS:", pass ? "✅ Set (hidden)" : "❌ Missing");
 
   if (host && user && pass) {
-    console.log("✅ Using SMTP transport:", host);
-    cachedTransporterPromise = Promise.resolve(
-      nodemailer.createTransport({
-        host,
-        port,
-        secure: port === 465,
-        auth: { user, pass },
-        connectionTimeout: 10000, // 10 seconds
-        greetingTimeout: 5000, // 5 seconds
-      })
-    );
-    return cachedTransporterPromise;
+    console.log("✅ Using SMTP transport:", host, "port:", port);
+    
+    // Try to verify connection first
+    const transport = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+      connectionTimeout: 15000, // 15 seconds
+      greetingTimeout: 10000, // 10 seconds
+      socketTimeout: 15000, // 15 seconds
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 3,
+    });
+    
+    try {
+      // Verify connection before caching
+      await transport.verify();
+      console.log("✅ SMTP connection verified successfully");
+      cachedTransporterPromise = Promise.resolve(transport);
+      return cachedTransporterPromise;
+    } catch (err) {
+      console.error("❌ SMTP connection failed:", err.message);
+      console.log("💡 Tip: Railway may block SMTP ports. Try port 2525 or use SendGrid API instead.");
+      throw err; // Let it fail so fallback can work
+    }
   }
 
   console.log("⚠️  SMTP credentials incomplete, checking fallbacks...");
