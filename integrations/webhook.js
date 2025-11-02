@@ -16,11 +16,26 @@ export const callWebhook = async ({ config, payload }) => {
   console.log("  Headers:", JSON.stringify(headers, null, 2));
   console.log("  Payload:", JSON.stringify(payload, null, 2).substring(0, 200) + "...");
 
+  // Check if this is a Slack webhook URL
+  const isSlackWebhook = url.includes('hooks.slack.com');
+  
+  // Prepare request data
+  let requestData = payload;
+  
+  // If Slack webhook, format payload as Slack expects
+  if (isSlackWebhook && method === 'POST') {
+    // Slack expects { "text": "message" }
+    // If payload has a message/text field, use it; otherwise stringify the payload
+    const slackMessage = payload?.text || payload?.message || JSON.stringify(payload);
+    requestData = { text: slackMessage };
+    console.log("📧 Detected Slack webhook - formatting payload:", JSON.stringify(requestData));
+  }
+
   try {
     const response = await axios({ 
       url, 
       method, 
-      data: payload, 
+      data: requestData, 
       headers, 
       timeout,
       validateStatus: () => true, // Don't throw on any status code
