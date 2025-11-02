@@ -1,12 +1,22 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import prisma from "./DB/db.js";
 
 dotenv.config();
 
 console.log("🚀 Starting Mini Zapier Backend...");
 console.log("PORT:", process.env.PORT || 3000);
 console.log("NODE_ENV:", process.env.NODE_ENV || "development");
+
+// Test database connection
+try {
+  await prisma.$connect();
+  console.log("✅ Database connected successfully");
+} catch (error) {
+  console.error("❌ Database connection failed:", error.message);
+  process.exit(1);
+}
 
 const app = express();
 
@@ -102,9 +112,23 @@ try {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Server is running on port ${PORT}`);
     console.log(`🌐 Listening on 0.0.0.0:${PORT}`);
+    console.log(`📡 Health check: http://0.0.0.0:${PORT}/health`);
   });
 } catch (error) {
   console.error('❌ Failed to start server:', error);
   process.exit(1);
 }
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  await prisma.$disconnect();
+  process.exit(0);
+});
 
