@@ -59,10 +59,14 @@ connection.on('ready', () => {
   console.log('✅ Redis ready to accept commands');
 });
 
+console.log('🚀 Starting Worker...');
+console.log('📋 Queue name: workflowActionQueue');
+
 // Create the Worker
 const worker = new Worker(
   "workflowActionQueue",
   async (job) => {
+    console.log(`📥 Job received: ${job.id} (${job.name})`);
     console.log(`Running workflow ${job.id}`);
     const { workflowId, actions, payload, triggerId } = job.data;
 
@@ -155,9 +159,19 @@ const worker = new Worker(
 
 // Event listeners
 worker.on("completed", (job) => {
-  console.log(`Job ${job.id} finished successfully`);
+  console.log(`✅ Job ${job.id} finished successfully`);
 });
 
 worker.on("failed", (job, err) => {
-  console.log(`Job ${job.id} failed: ${err.message}`);
+  console.error(`❌ Job ${job.id} failed: ${err.message}`);
 });
+
+worker.on("error", (err) => {
+  console.error(`❌ Worker error:`, err);
+});
+
+worker.on("ready", () => {
+  console.log('✅ Worker is ready and listening for jobs');
+});
+
+console.log('✅ Worker initialized successfully');
