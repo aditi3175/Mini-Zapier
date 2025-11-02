@@ -39,14 +39,20 @@ const corsOrigins = process.env.CORS_ORIGINS
 
 console.log("🌐 CORS origins:", corsOrigins);
 
-app.use(cors({
+// CORS middleware
+const corsOptions = {
   origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
-}));
+};
+
+app.use(cors(corsOptions));
+
+// Explicitly handle OPTIONS requests for all routes
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 
