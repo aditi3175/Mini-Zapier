@@ -4,6 +4,10 @@ import cors from "cors";
 
 dotenv.config();
 
+console.log("🚀 Starting Mini Zapier Backend...");
+console.log("PORT:", process.env.PORT || 3000);
+console.log("NODE_ENV:", process.env.NODE_ENV || "development");
+
 const app = express();
 
 // CORS configuration
@@ -83,5 +87,24 @@ app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server is running on port ${PORT}`));
+
+// Error handling for server startup
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+try {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Server is running on port ${PORT}`);
+    console.log(`🌐 Listening on 0.0.0.0:${PORT}`);
+  });
+} catch (error) {
+  console.error('❌ Failed to start server:', error);
+  process.exit(1);
+}
 
