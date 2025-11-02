@@ -271,7 +271,11 @@ app.post('/order-complete', async (req, res) => {
                     <div className="flex-1">
                       <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-slate-600"}`}>#{j.id} · {new Date(j.createdAt).toLocaleTimeString()}</div>
                       {j.result?.actions?.[0]?.info?.previewUrl ? (
-                        <a href={j.result.actions[0].info.previewUrl} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()} className="text-xs text-cyan-400 underline">Email preview</a>
+                        <a href={j.result.actions[0].info.previewUrl} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()} className="text-xs text-cyan-400 underline">📧 Email preview</a>
+                      ) : j.result?.actions?.[0]?.type === 'sendEmail' && j.result?.actions?.[0]?.ok ? (
+                        <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-slate-600"}`}>
+                          📧 Email logged (JSON transport - check Railway Worker logs)
+                        </div>
                       ) : j.result?.actions?.[0]?.type === 'webhook' ? (
                         <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-slate-600"}`}>Webhook sent to: {j.result?.actions?.[0]?.config?.url?.slice(0,40)}...</div>
                       ) : j.result?.actions?.[0]?.type === 'slackMessage' ? (
@@ -302,6 +306,15 @@ app.post('/order-complete', async (req, res) => {
                               )}
                               {action.message && (
                                 <div className={`mt-1 ${theme === "dark" ? "text-gray-400" : "text-slate-600"}`}>{action.message}</div>
+                              )}
+                              {action.info && (
+                                <div className={`mt-1 ${theme === "dark" ? "text-gray-400" : "text-slate-600"}`}>
+                                  {action.info.previewUrl ? (
+                                    <a href={action.info.previewUrl} target="_blank" rel="noreferrer" className="text-cyan-400 underline">📧 Email preview</a>
+                                  ) : (
+                                    <div className="text-xs">📧 Email logged (check Railway Worker logs for details)</div>
+                                  )}
+                                </div>
                               )}
                               {action.config && (
                                 <pre className={`mt-1 overflow-x-auto ${theme === "dark" ? "text-gray-400" : "text-slate-600"}`}>{JSON.stringify(action.config, null, 2)}</pre>
