@@ -10,6 +10,14 @@ async function sendViaSendGridAPI({ to, subject, text, html }) {
     throw new Error("SendGrid API key not found or invalid");
   }
 
+  // Get verified sender email from env or use default
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_USER || 'noreply@minizapier.com';
+  const fromName = process.env.SENDGRID_FROM_NAME || 'Mini Zapier';
+
+  console.log("📧 SendGrid API details:");
+  console.log("  From:", fromEmail);
+  console.log("  To:", to);
+
   const response = await axios.post(
     'https://api.sendgrid.com/v3/mail/send',
     {
@@ -17,7 +25,7 @@ async function sendViaSendGridAPI({ to, subject, text, html }) {
         to: [{ email: to }],
         subject: subject,
       }],
-      from: { email: 'noreply@minizapier.com', name: 'Mini Zapier' },
+      from: { email: fromEmail, name: fromName },
       content: [
         { type: 'text/plain', value: text },
         ...(html ? [{ type: 'text/html', value: html }] : []),
@@ -170,6 +178,10 @@ export const sendEmail = async ({ config, payload }) => {
     return { to, subject, previewUrl: preview };
   } catch (error) {
     console.error("❌ Email send error:", error.message);
+    if (error.response) {
+      console.error("  Status:", error.response.status);
+      console.error("  Response:", JSON.stringify(error.response.data, null, 2));
+    }
     throw new Error(`Email send failed: ${error.message}`);
   }
 };
