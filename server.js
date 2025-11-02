@@ -94,6 +94,12 @@ app.use("/api/webhooks", webhookRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/jobs", jobsRoutes);
 
+// Debug: Log all incoming requests
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Test webhook endpoint (for testing outgoing webhooks from Mini Zapier)
 // Also works as Slack webhook test endpoint (returns "ok" for Slack compatibility)
 app.post("/api/test-webhook", (req, res) => {
