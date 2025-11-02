@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import prisma from "../DB/db.js";
@@ -23,9 +24,11 @@ const replacePlaceholders = (str, payload) => {
 };
 
 // Redis connection for BullMQ
+console.log("=".repeat(50));
 console.log("🔍 Redis Configuration Check:");
 console.log("REDIS_URL present?", !!process.env.REDIS_URL);
-console.log("REDIS_URL value:", process.env.REDIS_URL ? `${process.env.REDIS_URL.substring(0, 20)}...` : 'NOT SET');
+console.log("REDIS_URL value:", process.env.REDIS_URL ? `${process.env.REDIS_URL.substring(0, 30)}...` : 'NOT SET');
+console.log("All env vars:", Object.keys(process.env).filter(k => k.includes('REDIS')).join(', '));
 
 const redisOptions = process.env.REDIS_URL 
   ? { 
@@ -39,9 +42,27 @@ const redisOptions = process.env.REDIS_URL
       maxRetriesPerRequest: null,
     };
 
-console.log("📡 Redis Options:", JSON.stringify({ ...redisOptions, url: redisOptions.url ? 'REDIS_URL_SET' : 'FALLBACK_TO_LOCALHOST' }));
+console.log("📡 Redis Options:", JSON.stringify({ 
+  ...redisOptions, 
+  url: redisOptions.url ? 'REDIS_URL_SET' : 'FALLBACK_TO_LOCALHOST',
+  host: redisOptions.host || 'N/A',
+  port: redisOptions.port || 'N/A'
+}));
+console.log("=".repeat(50));
 
 const connection = new IORedis(redisOptions);
+
+connection.on('connect', () => {
+  console.log('✅ Redis connected successfully!');
+});
+
+connection.on('error', (err) => {
+  console.error('❌ Redis connection error:', err.message);
+});
+
+connection.on('ready', () => {
+  console.log('✅ Redis ready to accept commands');
+});
 
 // Create the Worker
 const worker = new Worker(
