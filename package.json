@@ -6,6 +6,7 @@
     "postinstall": "prisma generate",
     "start": "npx prisma migrate deploy && node server.js",
     "start:server": "node server.js",
+    "start:worker": "node workers/worker.js",
     "dev": "nodemon server.js",
     "worker": "node workers/worker.js",
     "db:generate": "prisma generate",
