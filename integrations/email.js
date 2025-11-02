@@ -10,7 +10,14 @@ async function getTransporter() {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
+  console.log("📧 Email transporter check:");
+  console.log("  SMTP_HOST:", host ? "✅ Set" : "❌ Missing");
+  console.log("  SMTP_PORT:", port);
+  console.log("  SMTP_USER:", user ? "✅ Set" : "❌ Missing");
+  console.log("  SMTP_PASS:", pass ? "✅ Set (hidden)" : "❌ Missing");
+
   if (host && user && pass) {
+    console.log("✅ Using SMTP transport:", host);
     cachedTransporterPromise = Promise.resolve(
       nodemailer.createTransport({
         host,
@@ -23,6 +30,8 @@ async function getTransporter() {
     );
     return cachedTransporterPromise;
   }
+
+  console.log("⚠️  SMTP credentials incomplete, checking fallbacks...");
 
   // Fallback 1: Ethereal (great for development/testing)
   // Note: Railway blocks SMTP ports, so Ethereal won't work in production
