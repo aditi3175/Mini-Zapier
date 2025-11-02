@@ -50,11 +50,14 @@ export const validateUser = async (email, password) => {
   
 // Generate JWT token
 export const generateToken = (user) => {
-    return jwt.sign(
-      { id: user.id, role: user.role }, // include id here!
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured. Please set JWT_SECRET environment variable.");
+  }
+  return jwt.sign(
+    { id: user.id, role: user.role }, // include id here!
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 };
   
 // Helper: Verify JWT
