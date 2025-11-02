@@ -40,8 +40,31 @@ const corsOrigins = process.env.CORS_ORIGINS
 console.log("🌐 CORS origins:", corsOrigins);
 
 // CORS middleware - handle '*' for allow all origins
+// Also allow any Vercel preview domain if main domain is in list
 const corsOptions = {
-  origin: corsOrigins.includes('*') ? true : corsOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Allow all origins if '*' is in the list
+    if (corsOrigins.includes('*')) {
+      return callback(null, true);
+    }
+    
+    // Exact match
+    if (corsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow Vercel preview domains if main domain is allowed
+    const vercelMainDomain = corsOrigins.find(o => o.includes('vercel.app'));
+    if (vercelMainDomain && origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
+    
+    console.log(`⚠️  CORS blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
