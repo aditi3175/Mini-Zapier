@@ -24,33 +24,28 @@ const replacePlaceholders = (str, payload) => {
 };
 
 // Redis connection for BullMQ
-console.log("=".repeat(50));
-console.log("🔍 Redis Configuration Check:");
-console.log("REDIS_URL present?", !!process.env.REDIS_URL);
-console.log("REDIS_URL value:", process.env.REDIS_URL ? `${process.env.REDIS_URL.substring(0, 30)}...` : 'NOT SET');
-console.log("All env vars:", Object.keys(process.env).filter(k => k.includes('REDIS')).join(', '));
+let connection;
 
-const redisOptions = process.env.REDIS_URL 
-  ? { 
-      url: process.env.REDIS_URL,
-      maxRetriesPerRequest: null 
-    }
-  : {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: process.env.REDIS_PORT || 6379,
-      password: process.env.REDIS_PASSWORD || undefined,
-      maxRetriesPerRequest: null,
-    };
-
-console.log("📡 Redis Options:", JSON.stringify({ 
-  ...redisOptions, 
-  url: redisOptions.url ? 'REDIS_URL_SET' : 'FALLBACK_TO_LOCALHOST',
-  host: redisOptions.host || 'N/A',
-  port: redisOptions.port || 'N/A'
-}));
-console.log("=".repeat(50));
-
-const connection = new IORedis(redisOptions);
+if (process.env.REDIS_URL) {
+  // Use URL directly - IORedis accepts URL as first argument
+  console.log("🔗 Connecting to Redis using REDIS_URL");
+  connection = new IORedis(process.env.REDIS_URL, {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: true,
+    enableOfflineQueue: false,
+  });
+} else {
+  // Fallback to individual options
+  console.log("🔗 Connecting to Redis using host/port");
+  connection = new IORedis({
+    host: process.env.REDIS_HOST || 'localhost',
+    port: process.env.REDIS_PORT || 6379,
+    password: process.env.REDIS_PASSWORD || undefined,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: true,
+    enableOfflineQueue: false,
+  });
+}
 
 connection.on('connect', () => {
   console.log('✅ Redis connected successfully!');
