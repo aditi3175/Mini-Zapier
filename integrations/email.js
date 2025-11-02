@@ -25,24 +25,33 @@ async function getTransporter() {
   }
 
   // Fallback 1: Ethereal (great for development/testing)
+  // Note: Railway blocks SMTP ports, so Ethereal won't work in production
+  // Use JSON transport instead or configure real SMTP credentials
   if ((process.env.USE_ETHEREAL ?? "true").toLowerCase() !== "false") {
     try {
       const account = await nodemailer.createTestAccount();
       console.log("Using Ethereal test SMTP:", account.user);
-      cachedTransporterPromise = Promise.resolve(
-        nodemailer.createTransport({
-          host: "smtp.ethereal.email",
-          port: 587,
-          secure: false,
-          auth: { user: account.user, pass: account.pass },
-          connectionTimeout: 10000, // 10 seconds
-          greetingTimeout: 5000, // 5 seconds
-        })
-      );
+      
+      // Test connection first - if it fails, use JSON transport
+      const testTransport = nodemailer.createTransport({
+        host: "smtp.ethereal.email",
+        port: 587,
+        secure: false,
+        auth: { user: account.user, pass: account.pass },
+        connectionTimeout: 5000, // 5 seconds
+        greetingTimeout: 3000, // 3 seconds
+      });
+      
+      // Verify connection works
+      await testTransport.verify();
+      console.log("✅ Ethereal connection verified");
+      
+      cachedTransporterPromise = Promise.resolve(testTransport);
       return cachedTransporterPromise;
     } catch (err) {
-      console.warn("⚠️  Failed to create Ethereal account:", err.message);
-      console.log("📝 Falling back to JSON transport (emails will be logged only)");
+      console.warn("⚠️  Ethereal SMTP unavailable:", err.message);
+      console.log("📝 Railway likely blocks SMTP ports. Using JSON transport (emails will be logged only).");
+      console.log("💡 Tip: Set USE_ETHEREAL=false and configure real SMTP credentials for production.");
       // Fall through to JSON transport
     }
   }
